@@ -14,12 +14,16 @@ if (Test-Path -LiteralPath $publishRoot) {
 & dotnet publish $launcherProject `
     -c Release `
     --self-contained false `
+    -nodeReuse:false `
+    -p:UseSharedCompilation=false `
     -p:PublishSingleFile=true `
     -p:DebugType=None `
     -o $publishRoot
 if ($LASTEXITCODE -ne 0) {
     throw "Correntra launcher EXE could not be created."
 }
+
+dotnet build-server shutdown 2>$null
 
 Copy-Item -LiteralPath (Join-Path $publishRoot "CorrentraBaslat.exe") -Destination $outputPath -Force
 Write-Output $outputPath

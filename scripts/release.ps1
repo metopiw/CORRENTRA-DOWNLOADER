@@ -34,6 +34,12 @@ function Invoke-Checked([string]$Description, [scriptblock]$Command) {
 Set-Location $repositoryRoot
 Assert-RepositoryChild $releaseRoot | Out-Null
 
+# Keep MSBuild from leaving worker nodes (and the Roslyn compiler server)
+# running after packaging; they hold handles on the repository tree.
+$env:MSBUILDDISABLENODEREUSE = "1"
+dotnet build-server shutdown 2>$null
+
+
 # A previous package can leave top-level assets behind.  Release upload picks
 # files from this directory, so keep only artifacts generated for this run.
 Get-ChildItem -LiteralPath $releaseRoot -File -ErrorAction SilentlyContinue |

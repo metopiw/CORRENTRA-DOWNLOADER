@@ -30,3 +30,6 @@ browser-extension/bridge-token.txt
 
 # Locally published developer launcher; recreate with scripts/build-launcher.ps1.
 Correntra Baslat.exe
+
+# Windows Explorer folder customisation
+desktop.ini

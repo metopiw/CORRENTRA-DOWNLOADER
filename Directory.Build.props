@@ -7,6 +7,11 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- Never leave MSBuild worker nodes or the Roslyn compiler server running
+         after a build. They keep file handles on bin/obj and on the repository
+         root, which shows up as orphaned ".NET Host" processes in Task Manager
+         and blocks renaming or deleting the working tree. -->
+    <UseSharedCompilation>false</UseSharedCompilation>
     <Product>Correntra Downloader</Product>
     <Company>Correntra</Company>
     <Authors>Correntra</Authors>

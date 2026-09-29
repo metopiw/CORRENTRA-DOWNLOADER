@@ -9,11 +9,21 @@ Set-Location $repositoryRoot
 Get-Process -Name "Correntra","Correntra.Agent" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 
+# Kill leftover MSBuild node-reuse workers and the Roslyn compiler server.
+# Without this they linger ~15 minutes, hold the repository folder as their
+# working directory, and block renaming/rebuilding the tree.
+dotnet build-server shutdown 2>$null
+Start-Sleep -Milliseconds 400
+
 if (-not $SkipBuild) {
+    # Do not let MSBuild keep worker nodes alive after the build finishes:
+    # they keep file handles on bin/obj and on the repository root.
+    $env:MSBUILDDISABLENODEREUSE = "1"
+
     dotnet restore Correntra.sln
     if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed." }
 
-    dotnet build Correntra.sln -c Debug --no-restore
+    dotnet build Correntra.sln -c Debug --no-restore -nodeReuse:false -p:UseSharedCompilation=false
     if ($LASTEXITCODE -ne 0) { throw "dotnet build failed." }
 
     # Social video engine (yt-dlp): download once into artifacts/vendor, then

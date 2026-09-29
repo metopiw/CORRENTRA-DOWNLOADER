@@ -4,6 +4,12 @@ All notable changes to Correntra Downloader are recorded here. Dates are UTC.
 
 ## Unreleased
 
+### Fixed
+- Building, packaging and `baslat.bat` no longer leave orphaned MSBuild
+  worker nodes and the Roslyn compiler server running for ~15 minutes
+  afterwards. Those processes kept the repository folder locked, which
+  blocked renaming or deleting the working tree.
+
 ## 0.4.8 — 2026-09-16
 
 ### Changed
