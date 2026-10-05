@@ -5,6 +5,16 @@ All notable changes to Correntra Downloader are recorded here. Dates are UTC.
 ## Unreleased
 
 ### Fixed
+- Google Drive and other browser HTTP downloads now hand off the refreshed
+  final file URL, file name and the actual request's session headers (including
+  cookies). Drive confirmation pages remain in the browser until the file
+  download starts. Browser User-Agent replaces the transfer engine's default.
+  Session credentials are removed when the transfer redirects to another origin.
+- Concurrent browser download events no longer create duplicate jobs; filename
+  suggestions no longer pass an invalid absolute Windows path. Failed handoffs
+  and downloads requiring POST continue in the browser.
+- Bridge end-to-end checks now validate their own job, reject failed/cancelled
+  transfers, and optionally verify the completed file's name and SHA-256.
 - Building, packaging and `baslat.bat` no longer leave orphaned MSBuild
   worker nodes and the Roslyn compiler server running for ~15 minutes
   afterwards. Those processes kept the repository folder locked, which

@@ -81,6 +81,48 @@ function fileNameOf(url, fallback) {
   } catch { return fallback || "download"; }
 }
 
+// Drive's buttons/confirmation pages must finish in Chrome before we offer
+// the actual file URL. Sending these pages to the agent only downloads HTML.
+function isDriveUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === "drive.google.com" || host === "drive.usercontent.google.com";
+  } catch { return false; }
+}
+
+// Keep only replayable request headers, in memory and for a short time. Cookie
+// must come from the FINAL request, never from a different redirect host.
+const downloadRequests = new Map();
+const REQUEST_TTL_MS = 120000;
+const REPLAY_HEADERS = new Set(["cookie", "authorization", "referer", "origin", "user-agent", "accept", "accept-language"]);
+function pruneDownloadRequests() {
+  for (const [url, request] of downloadRequests) {
+    if (Date.now() - request.at > REQUEST_TTL_MS) downloadRequests.delete(url);
+  }
+  while (downloadRequests.size > 256) downloadRequests.delete(downloadRequests.keys().next().value);
+}
+chrome.webRequest.onBeforeSendHeaders.addListener((details) => {
+  if (new URL(details.url).origin === AGENT) return;
+  const headers = {};
+  for (const header of details.requestHeaders || []) {
+    if (REPLAY_HEADERS.has(header.name.toLowerCase()) && typeof header.value === "string") {
+      headers[header.name] = header.value;
+    }
+  }
+  const key = `${details.incognito ? 1 : 0}:${details.url}`;
+  downloadRequests.delete(key);
+  downloadRequests.set(key, { at: Date.now(), method: details.method, headers });
+  pruneDownloadRequests();
+}, { urls: ["http://*/*", "https://*/*"] }, ["requestHeaders", "extraHeaders"]);
+
+function requestContext(url, referrer, incognito = false) {
+  pruneDownloadRequests();
+  const request = downloadRequests.get(`${incognito ? 1 : 0}:${url}`);
+  const headers = { ...(request?.headers || {}) };
+  if (referrer && !Object.keys(headers).some((name) => name.toLowerCase() === "referer")) headers.Referer = referrer;
+  return { method: request?.method || "GET", headers };
+}
+
 // ---------------------------------------------------------------------------
 // Diagnostics visible in popup + toolbar badge
 // ---------------------------------------------------------------------------
@@ -242,6 +284,7 @@ async function handleMessage(msg, sender) {
   if (msg.type === "correntra.takeoverUrl") {
     if (!(await isCaptureEnabled())) return { accepted: false, reason: "disabled" };
     if (!isHttpUrl(msg.url)) return { accepted: false, reason: "non-http" };
+    if (isDriveUrl(msg.url)) return { accepted: false, reason: "browser-download-required" };
     keepAlivePush();
     try {
       if (!(await pingAgent())) {
@@ -289,17 +332,26 @@ async function handleMessage(msg, sender) {
 // Download interception — Layer 2 (downloads API)
 // ---------------------------------------------------------------------------
 const takeoverInFlight = new Set();
+const handledDownloads = new Set();
 
-async function getDownloadState(id) {
+async function getDownload(id) {
   try {
     const items = await chrome.downloads.search({ id });
-    return items && items[0] ? items[0].state : null;
+    return items && items[0] ? items[0] : null;
   } catch { return null; }
 }
 
 // Primary: fires as soon as Chrome creates the DownloadItem.
 chrome.downloads.onCreated.addListener((item) => {
   void takeOverDownload(item, "created");
+});
+
+// Some download providers fill in finalUrl/filename only after onCreated.
+chrome.downloads.onChanged.addListener((delta) => {
+  if (!delta.finalUrl && !delta.filename && !delta.mime) return;
+  void getDownload(delta.id).then((item) => {
+    if (item && item.state === "in_progress") void takeOverDownload(item, "changed");
+  });
 });
 
 // Backup: fires right before the filename is chosen. If onCreated was missed
@@ -309,34 +361,29 @@ try {
   chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     // If onCreated already handled this id, just suggest through.
     if (takeoverInFlight.has(item.id)) {
-      try { suggest({ filename: item.filename, conflictAction: "uniquify" }); } catch {}
+      suggest();
       return;
     }
     // Quick http filter synchronously — non-http never needs Correntra.
     const u = item.finalUrl || item.url || "";
     if (!isHttpUrl(u)) {
-      try { suggest({ filename: item.filename, conflictAction: "uniquify" }); } catch {}
+      suggest();
       return;
     }
     void takeOverDownload(item, "determining");
-    try { suggest({ filename: item.filename, conflictAction: "uniquify" }); } catch {}
+    suggest();
   });
 } catch {}
 
 async function takeOverDownload(item, source) {
   if (!item || item.byExtensionId) return;
-  if (takeoverInFlight.has(item.id)) return;
+  if (takeoverInFlight.has(item.id) || handledDownloads.has(item.id)) return;
   const url = item.finalUrl || item.url || "";
   if (!isHttpUrl(url)) return;
 
   const base = { fileName: (item.filename || "").split(/[\\/]/).pop() || fileNameOf(url, "download") };
 
-  if (!(await isCaptureEnabled())) {
-    await rememberCapture({ ...base, outcome: "capture-off" });
-    return;
-  }
-
-  // Dedupe + keepalive for the whole async chain.
+  // Claim synchronously, before storage/pause/search can let a second event in.
   takeoverInFlight.add(item.id);
   keepAlivePush();
   let resumed = false;
@@ -347,16 +394,30 @@ async function takeOverDownload(item, source) {
   };
 
   try {
+    if (!(await isCaptureEnabled())) {
+      await rememberCapture({ ...base, outcome: "capture-off" });
+      return;
+    }
     // 1) Pause immediately — IDM does this before any network/io.
     try { await chrome.downloads.pause(item.id); } catch {}
 
     // If Chrome already finished a tiny file between creation and pause,
     // re-downloading in Correntra would be wasteful.
-    const st = await getDownloadState(item.id);
-    if (st === "complete") {
+    item = (await getDownload(item.id)) || item;
+    if (item.state === "complete") {
       await rememberCapture({ ...base, outcome: "already-complete" });
       return;
     }
+    if (item.state === "interrupted") return;
+    const finalUrl = item.finalUrl || item.url;
+    if (!isHttpUrl(finalUrl)) { await resume(); return; }
+    const context = requestContext(finalUrl, item.referrer, item.incognito);
+    if (context.method !== "GET") {
+      await rememberCapture({ ...base, outcome: "browser-fallback", reason: "non-get-request" });
+      await resume();
+      return;
+    }
+    base.fileName = (item.filename || "").split(/[\\/]/).pop() || fileNameOf(finalUrl, "download");
 
     // 2) Agent must be reachable; otherwise hand back to Chrome silently
     //    but with diagnostics so the user knows WHY it fell through.
@@ -371,15 +432,18 @@ async function takeOverDownload(item, source) {
     //    desktop confirmation dialog. We cancel Chrome's copy immediately
     //    so only Correntra's transfer runs.
     const result = await postAgent("/takeover", {
-      url: item.url,
-      finalUrl: item.finalUrl || item.url,
-      filename: item.filename,
+      url: isHttpUrl(item.url) ? item.url : finalUrl,
+      finalUrl,
+      filename: base.fileName,
       mime: item.mime || "",
       referrer: item.referrer || "",
-      headers: item.referrer ? { Referer: item.referrer } : {},
+      headers: context.headers,
     }, 8000);
 
     if (result && result.accepted && result.jobId) {
+      handledDownloads.add(item.id);
+      while (handledDownloads.size > 256) handledDownloads.delete(handledDownloads.values().next().value);
+      downloadRequests.delete(`${item.incognito ? 1 : 0}:${finalUrl}`);
       try { await chrome.downloads.cancel(item.id); } catch {}
       try { await chrome.downloads.erase({ id: item.id }); } catch {}
       await rememberCapture({ ...base, outcome: "captured", jobId: result.jobId });

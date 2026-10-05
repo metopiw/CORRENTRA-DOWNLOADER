@@ -18,6 +18,14 @@ more) are extracted through a bundled **yt-dlp** sidecar
 into numbered per-entry files. A right-click "Download with Correntra" menu
 covers links, video and audio explicitly.
 
+Browser HTTP downloads, including Google Drive file downloads, forward the
+final download URL and its actual session headers to the agent. Complete
+Drive's confirmation steps in the browser first; handing a share/view page
+directly to the app does not resolve that page into a file. Failed handoffs,
+POST downloads and browser-only blobs remain in Chrome/Edge. Reload the
+unpacked extension after updating it. Regression tests for capture run with
+`node --test tests/browser-extension/background.test.cjs` (Node.js 22+).
+
 The application is being developed independently. GPL/AGPL/SSPL code is not
 part of the product. DRM circumvention is not implemented.
 

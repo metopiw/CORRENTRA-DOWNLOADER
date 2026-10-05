@@ -10,6 +10,35 @@ namespace Correntra.Integration.Tests.AgentRuntime;
 public sealed class AgentCommandDispatcherTests
 {
     [Fact]
+    public async Task DriveTakeoverPersistsFinalUrlAndSessionHeaders()
+    {
+        await using var fixture = new DispatcherFixture();
+        await fixture.InitializeAsync();
+        const string finalUrl = "https://drive.usercontent.google.com/download?id=fixture&confirm=t";
+        AgentResponseEnvelope response = await fixture.Dispatcher.DispatchAsync(CreateRequest(
+            "takeover.offer",
+            new
+            {
+                url = "https://drive.google.com/uc?id=fixture",
+                finalUrl,
+                filename = "belge.zip",
+                headers = new Dictionary<string, string>
+                {
+                    ["Cookie"] = "SID=fixture",
+                    ["User-Agent"] = "Chrome-fixture",
+                    ["Referer"] = "https://drive.google.com/",
+                },
+            }));
+
+        Assert.True(response.Payload.Accepted);
+        AgentJobRecord job = Assert.Single(await fixture.Coordinator.ListAsync());
+        Assert.Equal(finalUrl, job.Source.AbsoluteUri);
+        Assert.Equal("belge.zip", job.FileName);
+        Assert.Equal("SID=fixture", job.Headers["Cookie"]);
+        Assert.Equal("Chrome-fixture", job.Headers["User-Agent"]);
+    }
+
+    [Fact]
     public async Task TakeoverPersistsNeedsInputBeforeAcknowledging()
     {
         await using var fixture = new DispatcherFixture();

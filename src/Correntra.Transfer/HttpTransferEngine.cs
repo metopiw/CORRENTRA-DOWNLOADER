@@ -36,7 +36,7 @@ public sealed class HttpTransferEngine : IDisposable
         {
             var handler = new SocketsHttpHandler
             {
-                AllowAutoRedirect = true,
+                AllowAutoRedirect = false,
                 MaxAutomaticRedirections = 20,
                 AutomaticDecompression = DecompressionMethods.None,
                 UseCookies = false,
@@ -46,7 +46,7 @@ public sealed class HttpTransferEngine : IDisposable
                 EnableMultipleHttp2Connections = true,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(10),
             };
-            client = new HttpClient(handler, true)
+            client = new HttpClient(new HttpRedirectHandler(handler), true)
             {
                 Timeout = Timeout.InfiniteTimeSpan,
             };

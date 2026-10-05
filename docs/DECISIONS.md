@@ -6,6 +6,30 @@ One paragraph per decision: context → choice → consequence.
 
 ---
 
+## 2026-10-06 — Replay the browser's final download request
+
+**Context:** Drive downloads lost their authenticated session at handoff;
+the downloads API supplies URLs but not request cookies. The first event
+can also contain a placeholder filename/final URL, while two event handlers
+could pass the dedupe check before either claimed the ID.
+
+**Decision:** Observe an allowlist of actual request headers with
+`webRequest.onBeforeSendHeaders` and `extraHeaders`, keep a bounded two-minute
+in-memory cache, and use only the entry matching the refreshed final URL.
+Never copy another redirect host's credentials or log header values. Drive
+clicks finish the site's confirmation flow in Chrome before download takeover.
+Claim IDs before awaiting storage, remember successful IDs, and retry updated
+download metadata via `onChanged`. Leave POST downloads in Chrome: the engine
+cannot replay their request bodies. Forwarded User-Agent replaces our default.
+The default transfer client follows redirects explicitly and removes sensitive
+headers across origins, since raw Cookie headers bypass the cookie jar.
+
+**Consequence:** Cookie-protected GET files can retain their browser session;
+Drive share/view pages and browser-only blob/POST exports are not treated as
+plain downloadable GET files. No new browser permissions or dependencies.
+
+---
+
 ## 2026-09-16 — Desktop pipe contract carries the extension heartbeat (wire parity)
 
 **Context:** The status bar never showed the extension as connected even

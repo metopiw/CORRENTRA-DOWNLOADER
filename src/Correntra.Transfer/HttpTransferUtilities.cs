@@ -37,6 +37,14 @@ internal static class HttpTransferUtilities
                 throw new ArgumentException("HTTP header names and values cannot contain line breaks.", nameof(headers));
             }
 
+            // A forwarded browser User-Agent/Accept-Encoding replaces our default;
+            // appending it changes the session fingerprint or compression format.
+            if (name.Equals("User-Agent", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("Accept-Encoding", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Headers.Remove(name);
+            }
+
             if (!request.Headers.TryAddWithoutValidation(name, value))
             {
                 request.Dispose();

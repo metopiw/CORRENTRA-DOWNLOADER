@@ -9,6 +9,85 @@ namespace Correntra.Transfer.Tests;
 
 public sealed class HttpTransferEngineTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ProbeAsync_OnlyKeepsSessionHeadersOnSameOriginRedirects(bool sameOrigin)
+    {
+        var content = CreateContent(1024);
+        await using var destination = new LoopbackHttpServer(async (request, stream) =>
+        {
+            Assert.False(request.Headers.ContainsKey("Cookie"));
+            Assert.False(request.Headers.ContainsKey("Authorization"));
+            await ServeResourceAsync(request, stream, content, true).ConfigureAwait(false);
+        });
+        await using var source = new LoopbackHttpServer(async (request, stream) =>
+        {
+            if (request.Target == "/start")
+            {
+                await LoopbackHttpServer.WriteResponseAsync(stream, 302, "Found",
+                    new Dictionary<string, string> { ["Location"] = sameOrigin ? "/file" : new Uri(destination.BaseUri, "file").AbsoluteUri })
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            Assert.Equal("SID=fixture", request.Headers.GetValueOrDefault("Cookie"));
+            Assert.Equal("Bearer fixture", request.Headers.GetValueOrDefault("Authorization"));
+            await ServeResourceAsync(request, stream, content, true).ConfigureAwait(false);
+        });
+        using var engine = new HttpTransferEngine();
+
+        RemoteResourceInfo result = await engine.ProbeAsync(new Uri(source.BaseUri, "start"),
+            new Dictionary<string, string> { ["Cookie"] = "SID=fixture", ["Authorization"] = "Bearer fixture" })
+            .ConfigureAwait(false);
+
+        Assert.Equal(content.Length, result.ContentLength);
+        Assert.Equal(new Uri(sameOrigin ? source.BaseUri : destination.BaseUri, "file"), result.FinalUri);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_ReplaysBrowserSessionHeadersForProbeAndTransfer()
+    {
+        var content = CreateContent(300_123);
+        var authenticatedRequests = 0;
+        await using var server = new LoopbackHttpServer(async (request, stream) =>
+        {
+            if (request.Headers.GetValueOrDefault("Cookie") != "SID=fixture" ||
+                request.Headers.GetValueOrDefault("User-Agent") != "Chrome-fixture" ||
+                request.Headers.GetValueOrDefault("Referer") != "https://drive.google.com/" ||
+                request.Headers.GetValueOrDefault("Authorization") != "Bearer fixture")
+            {
+                await LoopbackHttpServer.WriteResponseAsync(stream, 403, "Forbidden").ConfigureAwait(false);
+                return;
+            }
+
+            Interlocked.Increment(ref authenticatedRequests);
+            await ServeResourceAsync(request, stream, content, true, "attachment; filename=belge.zip")
+                .ConfigureAwait(false);
+        });
+        using var directory = new TemporaryDirectory();
+        var destination = Path.Combine(directory.Path, "belge.zip");
+        using var engine = new HttpTransferEngine();
+
+        var result = await engine.DownloadAsync(new DownloadRequest(new Uri(server.BaseUri, "download?id=fixture"), destination)
+        {
+            Headers = new Dictionary<string, string>
+            {
+                ["Cookie"] = "SID=fixture",
+                ["User-Agent"] = "Chrome-fixture",
+                ["Referer"] = "https://drive.google.com/",
+                ["Authorization"] = "Bearer fixture",
+            },
+            MaxSegments = 2,
+            MinimumSegmentSizeBytes = 100_000,
+            ExpectedHash = new HashRequirement(TransferHashAlgorithm.Sha256, Convert.ToHexString(SHA256.HashData(content))),
+        }).ConfigureAwait(false);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(destination).ConfigureAwait(false));
+        Assert.NotNull(result.VerifiedHash);
+        Assert.True(authenticatedRequests >= 4);
+    }
+
     [Fact]
     public async Task ProbeAsync_FollowsRedirectAndParsesExtendedFileName()
     {

@@ -39,8 +39,8 @@ Browser integration is the unpacked Manifest V3 extension in
   on this machine (manifest allowed_origins, extension IDs, silent failures).
   **Extension identity is pinned**: `browser-extension/manifest.json` carries
   a fixed `key`, so the ID is always `bhnibkknmmodoehpaeoijnkabfdmbdjp`
-  (`Correntra.Core.BrowserExtensionIdentity`). The HTTP bridge and the native
-  validator accept ONLY that exact `chrome-extension://<id>/` Origin; any
+  (`Correntra.Core.BrowserExtensionIdentity`). The HTTP bridge accepts ONLY
+  that exact `chrome-extension://<id>` Origin (with or without a trailing slash); any
   other extension or web page gets 403. If you ever regenerate the key, you
   must update it in four places together: manifest, BrowserExtensionIdentity,
   tests, and `packaging/UZANTI-KURULUMU.txt`.
