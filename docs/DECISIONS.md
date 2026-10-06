@@ -6,6 +6,22 @@ One paragraph per decision: context → choice → consequence.
 
 ---
 
+## 2026-10-06 — Releases include Setup; refresh the deleted FFmpeg pin
+
+**Context:** A source-only fix does not reach users who install from Releases.
+Preparing 0.4.9 also found the pinned September 11 FFmpeg archive returned 404.
+
+**Decision:** Deliver changes as commit + push + versioned GitHub release with
+Setup, portable package and checksums. Use the available September 30 dated
+FFmpeg 8.1.3 LGPL shared build, verifying its upstream SHA-256 and executable
+license/build configuration; keep script, notice and documentation pins aligned.
+
+**Consequence:** The installer contains the same fix and extension as the tag.
+An immutable dated URL can still be deleted upstream; verify availability on
+each release instead of silently falling back to a rolling or unverified build.
+
+---
+
 ## 2026-10-06 — Replay the browser's final download request
 
 **Context:** Drive downloads lost their authenticated session at handoff;

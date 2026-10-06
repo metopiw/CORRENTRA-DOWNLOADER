@@ -15,7 +15,7 @@ SBOM and copy exact license texts.
 | ANGLE Windows natives | Avalonia graphics compatibility layer | BSD-3-Clause | Transitive native dependency |
 | SkiaSharp / HarfBuzzSharp | Rendering and text shaping | MIT | Transitive native dependency |
 | SQLitePCLRaw | SQLite managed/native provider | Apache-2.0 | Transitive runtime dependency |
-| FFmpeg 8.1 shared build | Clear-media remux/audio conversion sidecar | LGPLv3+ | Separate executable and DLL set |
+| FFmpeg 8.1.3 shared build | Clear-media remux/audio conversion sidecar | LGPLv3+ | Separate executable and DLL set |
 | yt-dlp | Social-platform video extractor sidecar | Unlicense | Separate executable, downloaded on demand |
 
 An LGPL-only FFmpeg sidecar may be distributed for remuxing and conversion.

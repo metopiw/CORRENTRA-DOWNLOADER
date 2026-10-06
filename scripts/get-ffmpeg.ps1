@@ -9,11 +9,11 @@ $ErrorActionPreference = "Stop"
 # whose assets are replaced in place and break checksum verification).
 # To upgrade: pick a new tag from BtbN/FFmpeg-Builds, update all three values
 # below, verify the LGPL license gate still passes, then run a release.
-$releaseTag = "autobuild-2026-09-11-13-20"
-$archiveName = "ffmpeg-n8.1.2-52-g5a03dfa0f6-win64-lgpl-shared-8.1.zip"
+$releaseTag = "autobuild-2026-09-30-13-08"
+$archiveName = "ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1.zip"
 $archiveUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$releaseTag/$archiveName"
-$expectedSha256 = "1EA9DEDBA28E39067BC1738935FECD376F5FA1E1A77F15F3A4488C176F12ED9B"
-$folderName = "ffmpeg-n8.1.2-52-g5a03dfa0f6-win64-lgpl-shared-8.1"
+$expectedSha256 = "3E47BDA1607740550141E37C0E49D1E5182B34699F15ADFD137EE266D346811A"
+$folderName = "ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1"
 $destination = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\$DestinationRoot"))
 $archivePath = Join-Path $destination $archiveName
 $expandedRoot = Join-Path $destination $folderName

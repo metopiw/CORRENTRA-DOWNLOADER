@@ -101,12 +101,16 @@ Browser integration is the unpacked Manifest V3 extension in
   GPL/AGPL/SSPL or non-commercial-only dependencies. Keep
   `THIRD-PARTY-NOTICES.md` and `CHANGELOG.md` in sync with changes.
 - FFmpeg is pinned to an **immutable dated autobuild tag**
-  (`autobuild-2026-08-24-13-10`), NOT the rolling `latest` tag whose assets
+  (`autobuild-2026-09-30-13-08`), NOT the rolling `latest` tag whose assets
   are replaced in place and break checksum verification. To upgrade: pick a
   new dated tag, update tag/name/sha256 together in `get-ffmpeg.ps1`.
 - Every code change must ship with an updated `CHANGELOG.md` entry (under
   Unreleased / next-version heading) and a push to origin — the maintainer
   treats both as part of done.
+- Maintainer delivery rule: commit + push + a versioned **Setup executable in
+  GitHub Releases** are required together. A source-only push is not delivery.
+  Publish the installer with the updated bundled extension and verify uploaded
+  assets and checksums before reporting the release as complete.
 - **Auto-push is enforced by git, not by memory**: `core.hooksPath` points at
   `scripts/hooks`, whose post-commit hook pushes to origin after EVERY commit
   (safe-fail: warns on offline/diverged instead of blocking). Never delete or

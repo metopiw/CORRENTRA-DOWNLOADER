@@ -9,13 +9,13 @@ to an immutable dated autobuild tag. The release gate verifies the upstream
 archive SHA-256 and rejects a build whose reported configuration contains
 `--enable-gpl` or `--enable-nonfree`.
 
-- Archive: `ffmpeg-n8.1.2-52-g5a03dfa0f6-win64-lgpl-shared-8.1.zip`
-- Pinned upstream tag: `autobuild-2026-09-11-13-20`
-- SHA-256: `1EA9DEDBA28E39067BC1738935FECD376F5FA1E1A77F15F3A4488C176F12ED9B`
+- Archive: `ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1.zip`
+- Pinned upstream tag: `autobuild-2026-09-30-13-08`
+- SHA-256: `3E47BDA1607740550141E37C0E49D1E5182B34699F15ADFD137EE266D346811A`
 - Upstream build scripts: <https://github.com/BtbN/FFmpeg-Builds>
 - FFmpeg source: <https://github.com/FFmpeg/FFmpeg/tree/n8.1>
 - Upstream binary feed:
-  <https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-11-13-20>
+  <https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08>
 
 These values must stay identical to `scripts/get-ffmpeg.ps1`, which is the
 single source of truth; `scripts/check-docs.ps1` enforces the match in CI.

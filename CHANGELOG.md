@@ -4,6 +4,13 @@ All notable changes to Correntra Downloader are recorded here. Dates are UTC.
 
 ## Unreleased
 
+## 0.4.9 — 2026-10-06
+
+### Changed
+- Setup and portable packages bundle the updated 0.4.9 browser extension.
+- FFmpeg is pinned to the SHA-256-verified LGPL shared 8.1.3 build from
+  `autobuild-2026-09-30-13-08`; the previous upstream archive was removed.
+
 ### Fixed
 - Google Drive and other browser HTTP downloads now hand off the refreshed
   final file URL, file name and the actual request's session headers (including
